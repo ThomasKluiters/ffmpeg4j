@@ -173,10 +173,8 @@ public class FFmpegVideoTargetSubstream
         Logging.LOGGER.log(Logging.DEBUG_LOG_LEVEL, "av_frame_free(outputFrame)...");
         avutil.av_frame_free(outputFrame);
 
-        Logging.LOGGER.log(Logging.DEBUG_LOG_LEVEL, "avcodec_close(codecContext))...");
-        avcodec.avcodec_close(codecContext);
-        Logging.LOGGER.log(Logging.DEBUG_LOG_LEVEL, "av_free(codecContext)...");
-        avutil.av_free(codecContext);
+        Logging.LOGGER.log(Logging.DEBUG_LOG_LEVEL, "avcodec_free_context(codecContext))...");
+        avcodec.avcodec_free_context(codecContext);
 
         Logging.LOGGER.log(Logging.DEBUG_LOG_LEVEL, "FFmpegVideoTargetSubstream.close() completed");
     }

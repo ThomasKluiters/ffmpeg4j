@@ -182,10 +182,8 @@ public class FFmpegVideoSourceSubstream
 
             // Close a given AVCodecContext and free all the data associated with it (but not the AVCodecContext itself).
             // So free it afterwards.
-            Logging.LOGGER.log(Logging.DEBUG_LOG_LEVEL, "avcodec_close(codecContext)...");
-            avcodec.avcodec_close(codecContext);
-            Logging.LOGGER.log(Logging.DEBUG_LOG_LEVEL, "av_free(codecContext)...");
-            avutil.av_free(codecContext);
+            Logging.LOGGER.log(Logging.DEBUG_LOG_LEVEL, "avcodec_free_context(codecContext)...");
+            avcodec.avcodec_free_context(codecContext);
 
             closed = true;
             Logging.LOGGER.log(Logging.DEBUG_LOG_LEVEL, "FFmpegVideoSourceSubstream.close() completed");

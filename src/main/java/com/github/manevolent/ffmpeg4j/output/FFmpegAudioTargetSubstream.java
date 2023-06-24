@@ -294,10 +294,8 @@ public class FFmpegAudioTargetSubstream
     public void close() throws Exception {
         Logging.LOGGER.log(Logging.DEBUG_LOG_LEVEL, "FFmpegAudioTargetSubstream.close() called");
 
-        Logging.LOGGER.log(Logging.DEBUG_LOG_LEVEL, "avcodec_close(stream.codec())...");
-        avcodec.avcodec_close(getCodecContext());
-        Logging.LOGGER.log(Logging.DEBUG_LOG_LEVEL, "av_free(stream.codec())...");
-        avutil.av_free(getCodecContext());
+        Logging.LOGGER.log(Logging.DEBUG_LOG_LEVEL, "avcodec_free_context(stream.codec())...");
+        avcodec.avcodec_free_context(getCodecContext());
 
         // see: https://ffmpeg.org/doxygen/2.1/doc_2examples_2resampling_audio_8c-example.html
         for (int i = 0; i < samples_in.length; i++) {
