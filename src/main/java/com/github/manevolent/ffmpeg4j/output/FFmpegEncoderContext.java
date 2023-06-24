@@ -59,12 +59,12 @@ public interface FFmpegEncoderContext extends FFmpegStreamContext {
      * @throws EOFException
      */
     default int encodeFrame(AVFrame frame) throws FFmpegException, EOFException {
-        int ret = -11, packet_finished = 0;
+        int ret = avutil.AVERROR_EAGAIN(), packet_finished = 0;
 
-        while (ret == -11) {
+        while (ret == avutil.AVERROR_EAGAIN()) {
             ret = avcodec.avcodec_send_frame(getCodecContext(), frame);
 
-            if (ret != -11)
+            if (ret != avutil.AVERROR_EAGAIN())
                 FFmpegError.checkError("avcodec_send_frame", ret);
 
             packet_finished += processAvailablePackets();
