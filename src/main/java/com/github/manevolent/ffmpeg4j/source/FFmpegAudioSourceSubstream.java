@@ -50,10 +50,7 @@ public class FFmpegAudioSourceSubstream
         this.parentStream = parentStream;
         this.codecContext = codecContext;
 
-        int channels = stream.codecpar().channels();
-
-        if (channels <= 0)
-            channels = avutil.av_get_channel_layout_nb_channels(stream.codecpar().channel_layout());
+        int channels = stream.codecpar().ch_layout().nb_channels();
 
         if (channels <= 0)
             throw new IllegalArgumentException("channel count not discernible");
@@ -64,16 +61,17 @@ public class FFmpegAudioSourceSubstream
         this.outputSampleRate = stream.codecpar().sample_rate();
         this.audio_input_frame_size =  256 * 1024 / outputChannels;
 
-        swrContext = swresample.swr_alloc_set_opts(
-                null,
+        swrContext = swresample.swr_alloc();
+        swresample.swr_alloc_set_opts2(
+                swrContext,
 
                 // Output configuration
-                stream.codecpar().channel_layout(),
+                stream.codecpar().ch_layout(),
                 OUTPUT_FORMAT,
                 stream.codecpar().sample_rate(),
 
                 // Input configuration
-                stream.codecpar().channel_layout(),
+                stream.codecpar().ch_layout(),
                 stream.codecpar().format(),
                 stream.codecpar().sample_rate(),
 
@@ -162,7 +160,7 @@ public class FFmpegAudioSourceSubstream
 
         // Add packet to queue
         totalDecoded += ret;
-        double time = FFmpeg.timestampToSeconds(stream.time_base(), frame.pkt_duration());
+        double time = FFmpeg.timestampToSeconds(stream.time_base(), frame.duration());
         double position = FFmpeg.timestampToSeconds(stream.time_base(), frame.pkt_dts());
         setPosition(position);
         double timestamp = parentStream.getCreatedTime() + position;

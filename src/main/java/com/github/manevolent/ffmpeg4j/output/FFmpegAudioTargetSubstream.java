@@ -47,7 +47,7 @@ public class FFmpegAudioTargetSubstream
 
         // Configure input parameters
         int ffmpegInputFormat = SAMPLE_FORMAT;
-        int inputChannels = stream.codecpar().channels();
+        int inputChannels = stream.codecpar().ch_layout().nb_channels();
         inputPlanes = avutil.av_sample_fmt_is_planar(ffmpegInputFormat) != 0 ? inputChannels : 1;
         int inputSampleRate = stream.codecpar().sample_rate();
         inputBytesPerSample = avutil.av_get_bytes_per_sample(ffmpegInputFormat);
@@ -55,7 +55,7 @@ public class FFmpegAudioTargetSubstream
 
         // Configure output parameters
         int ffmpegOutputFormat = stream.codecpar().format();
-        int outputChannels = stream.codecpar().channels();
+        int outputChannels = stream.codecpar().ch_layout().nb_channels();
         outputPlanes = avutil.av_sample_fmt_is_planar(ffmpegOutputFormat) != 0 ? outputChannels : 1;
         int outputSampleRate = stream.codecpar().sample_rate();
         outputBytesPerSample = avutil.av_get_bytes_per_sample(ffmpegOutputFormat);
@@ -67,25 +67,22 @@ public class FFmpegAudioTargetSubstream
                 1
         ) / outputPlanes;
 
-        swrContext = swresample.swr_alloc_set_opts(
-                null,
+        swrContext = swresample.swr_alloc();
+        swresample.swr_alloc_set_opts2(
+               swrContext,
 
                 // Output configuration
-                stream.codecpar().channel_layout(),
+                stream.codecpar().ch_layout(),
                 ffmpegOutputFormat,
                 stream.codecpar().sample_rate(),
 
                 // Input configuration
-                stream.codecpar().channel_layout(),
+                stream.codecpar().ch_layout(),
                 ffmpegInputFormat,
                 stream.codecpar().sample_rate(),
 
                 0, null
         );
-
-        // Force resampler to always resample regardless of the sample rates.
-        // This forces the output to always be floats.
-        avutil.av_opt_set_int(swrContext, "swr_flags", 1, 0);
 
         FFmpegError.checkError("swr_init", swresample.swr_init(swrContext));
 
@@ -126,9 +123,11 @@ public class FFmpegAudioTargetSubstream
 
     /**
      * Writes a single (or partial) frame to the stream.  Cannot ingest more than one frame.
+     *
      * @param samples Buffer of samples to write, can be any length >= len
-     * @param len Samples per channel (may need to be equal to frame_size).  Sending 0 will flush the stream. Cannot be
-     *            > frame_size().  Can be 0.  Must be positive.
+     * @param len     Samples per channel (may need to be equal to frame_size).  Sending 0 will flush the stream. Cannot be
+     *                > frame_size().  Can be 0.  Must be positive.
+     * @param flush
      * @throws FFmpegException
      */
     private int writeFrame(float[] samples, int len)
@@ -139,7 +138,7 @@ public class FFmpegAudioTargetSubstream
         if (len > getCodecContext().frame_size())
             throw new FFmpegException("invalid frame size: " + len + " > " + getCodecContext().frame_size());
 
-        int ffmpegNativeLength = len * getCodecContext().channels() * inputBytesPerSample;
+        int ffmpegNativeLength = len * getCodecContext().ch_layout().nb_channels() * inputBytesPerSample;
         if (presampleOutputBuffer.capacity() < ffmpegNativeLength) {
             presampleOutputBuffer = ByteBuffer.allocate(ffmpegNativeLength);
             presampleOutputBuffer.order(ByteOrder.nativeOrder());
@@ -152,14 +151,14 @@ public class FFmpegAudioTargetSubstream
             samples[i] = Math.min(1F, Math.max(-1F, samples[i]));
 
         // Obtain a 'samplesToRead' worth (chunk) of frames from the sample buffer
-        presampleOutputBuffer.asFloatBuffer().put(samples, 0, len * stream.codecpar().channels());
+        presampleOutputBuffer.asFloatBuffer().put(samples, 0, len * stream.codecpar().ch_layout().nb_channels());
 
         samples_in[0].position(0).put(presampleOutputBuffer.array(), 0, ffmpegNativeLength);
 
         int outputCount =
                 (int) Math.min(
                         (samples_out[0].limit() - samples_out[0].position()) /
-                                (stream.codecpar().channels() * outputBytesPerSample),
+                                (stream.codecpar().ch_layout().nb_channels() * outputBytesPerSample),
                         Integer.MAX_VALUE
                 );
 
@@ -181,8 +180,7 @@ public class FFmpegAudioTargetSubstream
         try {
             frame.nb_samples(ret);
             frame.format(stream.codecpar().format());
-            frame.channels(stream.codecpar().channels());
-            frame.channel_layout(stream.codecpar().channel_layout());
+            frame.ch_layout(stream.codecpar().ch_layout());
             frame.pts(avutil.av_rescale_q(writtenSamples, nativeTimeBase, getCodecContext().time_base()));
 
             for (int plane = 0; plane < outputPlanes; plane++)
@@ -210,11 +208,11 @@ public class FFmpegAudioTargetSubstream
      * @throws EOFException
      */
     private int drainInternalBuffer(boolean flush) throws FFmpegException, EOFException {
-        int totalFrameSize = stream.codecpar().frame_size() * stream.codecpar().channels();
+        int totalFrameSize = stream.codecpar().frame_size() * stream.codecpar().ch_layout().nb_channels();
         int minimumFrameSize = flush ? 1 : totalFrameSize;
         int written = 0, encoded = 0, toWrite;
 
-        int channels = stream.codecpar().channels();
+        int channels = stream.codecpar().ch_layout().nb_channels();
         if (channels <= 0) throw new IllegalArgumentException("channels <= 0: " + channels);
 
         while (sampleBufferPosition >= minimumFrameSize) {

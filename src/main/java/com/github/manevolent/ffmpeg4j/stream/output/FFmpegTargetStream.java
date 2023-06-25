@@ -282,24 +282,30 @@ public class FFmpegTargetStream extends TargetStream implements FFmpegFormatCont
                 throw new FFmpegException("codec does not support sample rate: " + sample_rate);
         }
 
-        if (codecContext.codec().channel_layouts() != null && !codecContext.codec().channel_layouts().isNull()) {
+        if (codecContext.codec().ch_layouts() != null && !codecContext.codec().ch_layouts().isNull()) {
             boolean channelLayoutSupported = false;
             for (int i = 0; !channelLayoutSupported; i++) {
-                long channelLayout = codecContext.codec().channel_layouts().get(i);
-                if (channelLayout == channel_layout)
+                AVChannelLayout currentLayout = codecContext.codec().ch_layouts().position(i);
+                long channelLayoutMask = currentLayout.u_mask();
+                if (channelLayoutMask == channel_layout && currentLayout.nb_channels() == channels) {
                     channelLayoutSupported = true;
-                else if (channelLayout <= 0)
+                }
+                else if (channelLayoutMask <= 0)
                     break;
             }
             if (!channelLayoutSupported)
                 throw new FFmpegException("codec does not support channel layout: " + channel_layout);
         }
 
+        AVChannelLayout layout = new AVChannelLayout();
+        layout.u_mask(channel_layout);
+        layout.nb_channels(channels);
+        layout.order(1);
+
         codecContext.sample_fmt(sampleFormat);
         codecContext.sample_rate(sample_rate);
-        codecContext.channels(channels);
         codecContext.codec_type(codec.type());
-        codecContext.channel_layout(channel_layout);
+        codecContext.ch_layout(layout);
         codecContext.frame_size();
 
         // some formats want stream headers to be separate
@@ -324,8 +330,7 @@ public class FFmpegTargetStream extends TargetStream implements FFmpegFormatCont
         stream.codecpar().codec_id(codec.id());
         stream.codecpar().format(sampleFormat);
         stream.codecpar().sample_rate(sample_rate);
-        stream.codecpar().channels(channels);
-        stream.codecpar().channel_layout(channel_layout);
+        stream.codecpar().ch_layout(layout);
         stream.codecpar().codec_type(codec.type());
         stream.codecpar().frame_size(codecContext.frame_size());
 
