@@ -35,7 +35,8 @@ public interface FFmpegEncoderContext extends FFmpegStreamContext {
             try {
                 ret = avcodec.avcodec_receive_packet(getCodecContext(), packet);
                 if (ret == avutil.AVERROR_EAGAIN()) break; // output is not available right now - user must try to send new input
-
+                if (ret == avutil.AVERROR_EOF())
+                    break; // reached end of input - we probably flushed
                 // Check for misc. errors:
                 FFmpegError.checkError("avcodec_receive_packet", ret);
 
