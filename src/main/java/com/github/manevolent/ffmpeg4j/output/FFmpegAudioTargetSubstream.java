@@ -241,7 +241,7 @@ public class FFmpegAudioTargetSubstream
     public void flush() throws IOException {
         try {
             drainInternalBuffer(true);
-            writeFrame(new float[0], 0);
+            encodeFrame(null);
         } catch (FFmpegException e) {
             throw new IOException(e);
         }
